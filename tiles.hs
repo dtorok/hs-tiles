@@ -5,11 +5,11 @@ import Debug.Trace
 -- data types
 -------------
 
-data Color = White | Yellow | Red deriving (Show, Eq)
+data Color = Empty | White | Yellow | Red deriving (Show, Eq)
 data Wall = Wall {
 			width  :: Int,
 			height :: Int,
-			tiles  :: [[Maybe Color]]
+			tiles  :: [[Color]]
 } deriving (Show)
 
 type Shape = [(Int, Int)]
@@ -22,7 +22,7 @@ on :: (Int, Int) -> Wall -> Bool
 on (x, y) wall = x >= 0 && x < (width wall) &&
                  y >= 0 && y < (height wall)
 
-createWall :: Int -> Int -> Maybe Color -> Wall
+createWall :: Int -> Int -> Color -> Wall
 createWall w h c = Wall w h createRows
 	where
 		createRows = ((take h) . repeat) createRow
@@ -32,15 +32,17 @@ setColor :: Int -> Int -> Color -> Wall -> Wall
 setColor x y c wall | (x, y) `on` wall = wall{tiles=tiles'}
 	where
 		tiles' = (tiles wall) & element y .~ row'
-		row' = ((tiles wall) !! y) & element x .~ Just c
+		row' = ((tiles wall) !! y) & element x .~ c
 setColor x y c wall = wall
 
 getColor :: (Int, Int) -> Wall -> Maybe Color
-getColor (x, y) wall | (x, y) `on` wall = (tiles wall) !! y !! x
+getColor (x, y) wall | (x, y) `on` wall = Just ((tiles wall) !! y !! x)
 getColor (x, y) wall = Nothing
 
-isEmptyTitle :: Wall -> (Int, Int) -> Bool
-isEmptyTitle wall coord = getColor coord wall == Nothing
+isEmptyTile :: Wall -> (Int, Int) -> Bool
+isEmptyTile wall coord = case getColor coord wall of
+								Just Empty -> True
+								otherwise -> False
 
 wall2html :: Wall -> String
 wall2html wall = mkhtml $ (mktable . unwords) htmlrows
@@ -55,7 +57,7 @@ wall2html wall = mkhtml $ (mktable . unwords) htmlrows
 						    	\.White { background-color: white } \
 						    	\.Yellow { background-color: yellow } \
 						    	\.Red { background-color: #99182C } \
-						    	\.empty { background-color: grey } \
+						    	\.Empty { background-color: grey } \
 						  	\</style></head>\
 						  	\<body>" ++ content ++ "</body>\
 						  \</html>"
@@ -65,9 +67,8 @@ wall2html wall = mkhtml $ (mktable . unwords) htmlrows
 		mktd tile = "<td class=\"" ++ (getClass tile) ++ "\">&nbsp</td>"
 		--mktd tile = "<td style=\"background-color: " ++ (getClass tile) ++ "\">&nbsp</td>"
 
-		getClass :: Maybe Color -> String
-		getClass (Just title) = show title
-		getClass Nothing = "empty"
+		getClass :: Color -> String
+		getClass tile = show tile
 
 add :: Shape -> Int -> Int -> Int -> Color -> Wall -> Wall
 add shape x y r c wall = wall'
@@ -88,7 +89,7 @@ addMaybe shape x y r c (Just wall) = case isClear of
 	where
 		shape' = transform x y r shape
 		isClear = (filter (hasTitleAlready wall) shape') == []
-		hasTitleAlready wall coord = not $ isEmptyTitle wall coord
+		hasTitleAlready wall coord = not $ isEmptyTile wall coord
 
 
 ---------
@@ -177,7 +178,7 @@ deserializeWall shapeData wall = generate shapeData wall
 		generate ((s,x,y,r,c):sx) wall = generate sx $ addSafe (shapeByIndex s) x y r (colorByIndex c) wall
 
 fillupWall :: Wall -> Wall
-fillupWall wall = fillup (0, 0) 0 0 6 wall
+fillupWall wall = fillup (0, 0) 0 0 20 wall
 	where
 		fillup (x, y) _ _        _   wall | x == maxx = wall
 		fillup _      _ _        0   wall = wall
@@ -219,12 +220,13 @@ main = do
 	let wall = 
 			   --deserializeWall randomShapes $ 
 			   decorateWall $
+			   addSafe sL 15 3 0 Yellow $
 			   setColor 0 0 Yellow $ 
 			   setColor 1 1 Red $ 
 			   setColor 0 2 White $ 
-			   createWall 30 7 Nothing
+			   createWall 30 7 Empty
 	let wall' = fillupWall $ 
-			   createWall 30 7 Nothing
+			   createWall 30 7 Empty
 
 	writeFile "/tmp/tiles.html" $ wall2html wall'
 	--print $ wall
