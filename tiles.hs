@@ -1,5 +1,5 @@
 import Control.Lens hiding (transform)
-
+import Debug.Trace
 
 -------------
 -- data types
@@ -19,8 +19,8 @@ type Shape = [(Int, Int)]
 -- wall
 -------
 on :: (Int, Int) -> Wall -> Bool
-on (x, y) wall = x > 0 && x < (width wall) &&
-                 y > 0 && y < (height wall)
+on (x, y) wall = x >= 0 && x < (width wall) &&
+                 y >= 0 && y < (height wall)
 
 createWall :: Int -> Int -> Maybe Color -> Wall
 createWall w h c = Wall w h createRows
@@ -63,6 +63,7 @@ wall2html wall = mkhtml $ (mktable . unwords) htmlrows
 		mktable table = "<table>" ++ table ++ "</table>"
 		mktr row = "<tr>" ++ row ++ "</tr>"
 		mktd tile = "<td class=\"" ++ (getClass tile) ++ "\">&nbsp</td>"
+		--mktd tile = "<td style=\"background-color: " ++ (getClass tile) ++ "\">&nbsp</td>"
 
 		getClass :: Maybe Color -> String
 		getClass (Just title) = show title
@@ -76,13 +77,19 @@ add shape x y r c wall = wall'
 		setTile w (sx, sy) = setColor sx sy c w
 
 addSafe :: Shape -> Int -> Int -> Int -> Color -> Wall -> Wall
-addSafe shape x y r c wall = case isClear of
-								True  -> add shape x y r c wall
-								False -> wall
+addSafe shape x y r c wall = case addMaybe shape x y r c (Just wall) of
+								Just wall' -> wall'
+								Nothing    -> wall
+
+addMaybe :: Shape -> Int -> Int -> Int -> Color -> Maybe Wall -> Maybe Wall
+addMaybe shape x y r c (Just wall) = case isClear of
+								True  -> Just (add shape x y r c wall)
+								False -> Nothing
 	where
 		shape' = transform x y r shape
 		isClear = (filter (hasTitleAlready wall) shape') == []
 		hasTitleAlready wall coord = not $ isEmptyTitle wall coord
+
 
 ---------
 -- shapes
@@ -163,21 +170,62 @@ decorateWall wall = addSafe sJ  8 3 3 Red $
 			 		wall
 			
 
-generateWall :: Wall -> Wall
-generateWall wall = generate randomShapes wall
+deserializeWall :: [(Int, Int, Int, Int, Int)] -> Wall -> Wall
+deserializeWall shapeData wall = generate shapeData wall
 	where
 		generate [] wall = wall
 		generate ((s,x,y,r,c):sx) wall = generate sx $ addSafe (shapeByIndex s) x y r (colorByIndex c) wall
 
+fillupWall :: Wall -> Wall
+fillupWall wall = fillup (0, 0) 0 0 6 wall
+	where
+		fillup (x, y) _ _        _   wall | x == maxx = wall
+		fillup _      _ _        0   wall = wall
+		fillup coord  c genstate cnt wall | genstate == maxGenState = fillup (next coord) (c + 1) 0 cnt wall
+		fillup (x, y) c genstate cnt wall = case tryToAdd gShape x y gR (colorByIndex c) (Just wall) of
+											Just wall' -> fillup (next (x, y)) (c + 1) 0              (cnt-1) wall'
+											Nothing    -> fillup (x, y)        (c + 1) (genstate + 1)  cnt    wall
+							where
+								(gShape, gR) = genShape genstate
+
+		next :: (Int, Int) -> (Int, Int)
+		next (x, y) | y == maxy = (x+1, 0)
+		next (x, y) = (x, y+1)
+
+		maxx = (width wall) -  1
+		maxy = (height wall) -  1
+
+		tryToAdd :: Shape -> Int -> Int -> Int -> Color -> Maybe Wall -> Maybe Wall
+		tryToAdd shape x y r c (Just wall) = case checkColors of 
+												True -> addMaybe shape x y r c (Just wall)
+												False -> Nothing
+			where
+				shape' = transform x y r shape
+				checkColors = and $ map checkColorFor shape'
+				checkColorAround coord = and $ map checkColorFor (coordsAround coord)
+				checkColorFor coord = case getColor coord wall of
+												Just c' -> c' /= c
+												Nothing -> True
+				coordsAround (sx, sy) = [(sx+1, sy), (sx-1, sy), (sx, sy+1), (sx, sy-1)]
+
+type Gen = Int -> (Shape, Int)
+genShape :: Gen
+genShape state = (shapeByIndex $ state `div` 4, state `mod` 4)
+maxGenState :: Int
+maxGenState = 7 * 4
+
 main :: IO ()
 main = do
-	let wall = generateWall $ 
+	let wall = 
+			   --deserializeWall randomShapes $ 
 			   decorateWall $
-			   setColor 1 1 Yellow $ 
-			   setColor 2 2 Red $ 
-			   setColor 1 3 White $ 
+			   setColor 0 0 Yellow $ 
+			   setColor 1 1 Red $ 
+			   setColor 0 2 White $ 
 			   createWall 30 7 Nothing
-	let wall' =  wall
+	let wall' = fillupWall $ 
+			   createWall 30 7 Nothing
+
 	writeFile "/tmp/tiles.html" $ wall2html wall'
 	--print $ wall
 	--print $ wall2html wall
