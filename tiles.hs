@@ -1,6 +1,7 @@
 import Control.Lens hiding (transform)
 import Debug.Trace
 
+
 -------------
 -- data types
 -------------
@@ -18,6 +19,7 @@ type Shape = [(Int, Int)]
 -------
 -- wall
 -------
+
 on :: (Int, Int) -> Wall -> Bool
 on (x, y) wall = x >= 0 && x < (width wall) &&
                  y >= 0 && y < (height wall)
@@ -44,32 +46,6 @@ isEmptyTile wall coord = case getColor coord wall of
                                 Just Empty -> True
                                 otherwise -> False
 
-wall2html :: Wall -> String
-wall2html wall = mkhtml $ (mktable . unwords) htmlrows
-    where
-        htmlrows = map (mktr . unwords . htmlrow) $ tiles wall
-        htmlrow row = map mktd row
-        mkhtml content = "<html>\
-                            \<head><style>\
-                                \body { background-color: #dddddd; } \
-                                \table { margin: auth } \
-                                \table tr td { width: 30px; height: 30px } \
-                                \.White { background-color: white } \
-                                \.Yellow { background-color: yellow } \
-                                \.Red { background-color: #99182C } \
-                                \.Empty { background-color: grey } \
-                            \</style></head>\
-                            \<body>" ++ content ++ "</body>\
-                          \</html>"
-
-        mktable table = "<table>" ++ table ++ "</table>"
-        mktr row = "<tr>" ++ row ++ "</tr>"
-        mktd tile = "<td class=\"" ++ (getClass tile) ++ "\">&nbsp</td>"
-        --mktd tile = "<td style=\"background-color: " ++ (getClass tile) ++ "\">&nbsp</td>"
-
-        getClass :: Color -> String
-        getClass tile = show tile
-
 add :: Shape -> Int -> Int -> Int -> Color -> Wall -> Wall
 add shape x y r c wall = wall'
     where
@@ -94,8 +70,8 @@ addMaybe shape x y r c (Just wall) = case isClear of
                                 False -> Nothing
     where
         shape' = transform x y r shape
-        isClear = (filter (hasTitleAlready wall) shape') == []
-        hasTitleAlready wall coord = not $ isEmptyTile wall coord
+        isClear = (filter (hasTileAlready wall) shape') == []
+        hasTileAlready wall coord = not $ isEmptyTile wall coord
 
 
 ---------
@@ -147,6 +123,7 @@ sT = [(0, 0), (1, 0), (2, 0), (1, 1)]
 -----------
 -- indexing
 -----------
+
 byIndex :: Int -> [a] -> a
 byIndex index items = items !! nindex
     where
@@ -160,22 +137,9 @@ colorByIndex :: Int -> Color
 colorByIndex index = byIndex index [White, Yellow, Red]
 
 
--------
--- main
--------
-
-decorateWall :: Wall -> Wall
-decorateWall wall = addSafe sJ  8 3 3 Red $ 
-                    addSafe sI  6 4 0 Yellow $ 
-                    addSafe sZ  6 1 1 Red $
-                    addSafe sS  6 3 0 White $ 
-                    addSafe sJ  7 1 3 Yellow $
-                    addSafe sL  4 2 0 White $
-                    addSafe sO 10 1 0 White $
-                    addSafe sT 11 5 3 Yellow $ 
-                    addSafe sS 13 4 3 Red $
-                    wall
-            
+-------------
+-- generators
+-------------
 
 deserializeWall :: [(Int, Int, Int, Int, Int)] -> Wall -> Wall
 deserializeWall shapeData wall = generate shapeData wall
@@ -183,8 +147,8 @@ deserializeWall shapeData wall = generate shapeData wall
         generate [] wall = wall
         generate ((s,x,y,r,c):sx) wall = generate sx $ addSafe (shapeByIndex s) x y r (colorByIndex c) wall
 
-fillupWall' :: Int -> Wall -> Maybe Wall
-fillupWall' cnt wall = fillFrom (0, 0) cnt wall
+fillupWall :: Int -> Wall -> Maybe Wall
+fillupWall cnt wall = fillFrom (0, 0) cnt wall
     where
         fillFrom :: (Int, Int) -> Int -> Wall -> Maybe Wall
         fillFrom coord 0   wall = Just wall
@@ -239,17 +203,8 @@ fillupWall' cnt wall = fillFrom (0, 0) cnt wall
                         coordsAround (sx, sy) = [(sx+1, sy), (sx-1, sy), (sx, sy+1), (sx, sy-1)]
 
 
-next' c wall = case getColor c' wall of
-                Just Empty -> c'
-                Nothing -> (0,0)
-                otherwise -> next' c' wall
-    where
-        c' = cnext c
-        cnext (x,y) = if y < (height wall) then (x, y+1) else (x+1, 0)
-
-
-fillupWall :: Wall -> Wall
-fillupWall wall = fillup (0, 0) 0 0 200 wall
+fillupWallWithHops :: Wall -> Wall
+fillupWallWithHops wall = fillup (0, 0) 0 0 200 wall
     where
         fillup (x, y) _ _        _   wall | x == maxx = wall
         fillup _      _ _        0   wall = wall
@@ -286,32 +241,79 @@ fillupWall wall = fillup (0, 0) 0 0 200 wall
         maxGenState :: Int
         maxGenState = 7 * 4
 
+
+-------
+-- html
+-------
+
+wall2html :: Wall -> String
+wall2html wall = mkhtml $ (mktable . unwords) htmlrows
+    where
+        htmlrows = map (mktr . unwords . htmlrow) $ tiles wall
+        htmlrow row = map mktd row
+        mkhtml content = "<html>\
+                            \<head><style>\
+                                \body { background-color: #dddddd; } \
+                                \table { margin: auth } \
+                                \table tr td { width: 30px; height: 30px } \
+                                \.White { background-color: white } \
+                                \.Yellow { background-color: yellow } \
+                                \.Red { background-color: #99182C } \
+                                \.Empty { background-color: grey } \
+                            \</style></head>\
+                            \<body>" ++ content ++ "</body>\
+                          \</html>"
+
+        mktable table = "<table>" ++ table ++ "</table>"
+        mktr row = "<tr>" ++ row ++ "</tr>"
+        mktd tile = "<td class=\"" ++ (getClass tile) ++ "\">&nbsp</td>"
+        --mktd tile = "<td style=\"background-color: " ++ (getClass tile) ++ "\">&nbsp</td>"
+
+        getClass :: Color -> String
+        getClass tile = show tile
+
+
+-------
+-- main
+-------
+
 main :: IO ()
 main = do
-    let wall = 
-               --deserializeWall randomShapes $ 
-               decorateWall $
-               addSafe sL 15 3 0 Yellow $
-               setColor 0 0 Yellow $ 
-               setColor 1 1 Red $ 
-               setColor 0 2 White $ 
-               createWall 30 7 Empty
+    let wall_manual = addSafe sJ  8 3 3 Red 
+                    $ addSafe sI  6 4 0 Yellow 
+                    $ addSafe sZ  6 1 1 Red
+                    $ addSafe sS  6 3 0 White 
+                    $ addSafe sJ  7 1 3 Yellow
+                    $ addSafe sL  4 2 0 White
+                    $ addSafe sO 10 1 0 White
+                    $ addSafe sT 11 5 3 Yellow 
+                    $ addSafe sS 13 4 3 Red
+                    $ addSafe sL 15 3 0 Yellow
+                    $ setColor 0 0 Yellow 
+                    $ setColor 1 1 Red 
+                    $ setColor 0 2 White 
+                    $ createWall 30 7 Empty
 
-    let wall' = Just $ 
-                fillupWall $ 
-                createWall 30 7 Empty
+    let wall_with_hops = Just
+                       $ fillupWallWithHops
+                       $ addSafe sT 2 3 0 Yellow
+                       $ createWall 30 15 Empty
 
-    let longer_side = fillupWall' 53 $ 
-                       addSafe sT 13 4 3 White $
-                       addSafe sO 20 4 0 Yellow $
-                       addSafe sZ 19 1 1 Yellow $
-                       createWall 32 7 Empty
+    let wall_semi_random = Just
+                         $ deserializeWall randomShapes
+                         $ createWall 30 7 Empty
 
-    let shorter_side = fillupWall' 20 $
-                       addSafe sT 0 2 0 White $
-                       createWall 12 7 Empty
+    let longer_side = fillupWall 53
+                    $ addSafe sT 13 4 3 White
+                    $ addSafe sO 20 4 0 Yellow
+                    $ addSafe sZ 19 1 1 Yellow
+                    $ createWall 32 7 Empty
 
-    case shorter_side of 
+    let shorter_side = fillupWall 20
+                     $ addSafe sT 0 2 0 White
+                     $ createWall 12 7 Empty
+
+    case longer_side of 
         Just w -> writeFile "/tmp/tiles.html" $ wall2html w
         Nothing -> print "ooo..."
 
