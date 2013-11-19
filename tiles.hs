@@ -7,9 +7,9 @@ import Debug.Trace
 
 data Color = Empty | White | Yellow | Red deriving (Show, Eq)
 data Wall = Wall {
-			width  :: Int,
-			height :: Int,
-			tiles  :: [[Color]]
+            width  :: Int,
+            height :: Int,
+            tiles  :: [[Color]]
 } deriving (Show)
 
 type Shape = [(Int, Int)]
@@ -24,15 +24,15 @@ on (x, y) wall = x >= 0 && x < (width wall) &&
 
 createWall :: Int -> Int -> Color -> Wall
 createWall w h c = Wall w h createRows
-	where
-		createRows = ((take h) . repeat) createRow
-		createRow = ((take w) . repeat) c
+    where
+        createRows = ((take h) . repeat) createRow
+        createRow = ((take w) . repeat) c
 
 setColor :: Int -> Int -> Color -> Wall -> Wall
 setColor x y c wall | (x, y) `on` wall = wall{tiles=tiles'}
-	where
-		tiles' = (tiles wall) & element y .~ row'
-		row' = ((tiles wall) !! y) & element x .~ c
+    where
+        tiles' = (tiles wall) & element y .~ row'
+        row' = ((tiles wall) !! y) & element x .~ c
 setColor x y c wall = wall
 
 getColor :: (Int, Int) -> Wall -> Maybe Color
@@ -41,55 +41,61 @@ getColor (x, y) wall = Nothing
 
 isEmptyTile :: Wall -> (Int, Int) -> Bool
 isEmptyTile wall coord = case getColor coord wall of
-								Just Empty -> True
-								otherwise -> False
+                                Just Empty -> True
+                                otherwise -> False
 
 wall2html :: Wall -> String
 wall2html wall = mkhtml $ (mktable . unwords) htmlrows
-	where
-		htmlrows = map (mktr . unwords . htmlrow) $ tiles wall
-		htmlrow row = map mktd row
-		mkhtml content = "<html>\
-		 				    \<head><style>\
-		 				        \body { background-color: #dddddd; } \
-		 				        \table { margin: auth } \
-		 				    	\table tr td { width: 30px; height: 30px } \
-						    	\.White { background-color: white } \
-						    	\.Yellow { background-color: yellow } \
-						    	\.Red { background-color: #99182C } \
-						    	\.Empty { background-color: grey } \
-						  	\</style></head>\
-						  	\<body>" ++ content ++ "</body>\
-						  \</html>"
+    where
+        htmlrows = map (mktr . unwords . htmlrow) $ tiles wall
+        htmlrow row = map mktd row
+        mkhtml content = "<html>\
+                            \<head><style>\
+                                \body { background-color: #dddddd; } \
+                                \table { margin: auth } \
+                                \table tr td { width: 30px; height: 30px } \
+                                \.White { background-color: white } \
+                                \.Yellow { background-color: yellow } \
+                                \.Red { background-color: #99182C } \
+                                \.Empty { background-color: grey } \
+                            \</style></head>\
+                            \<body>" ++ content ++ "</body>\
+                          \</html>"
 
-		mktable table = "<table>" ++ table ++ "</table>"
-		mktr row = "<tr>" ++ row ++ "</tr>"
-		mktd tile = "<td class=\"" ++ (getClass tile) ++ "\">&nbsp</td>"
-		--mktd tile = "<td style=\"background-color: " ++ (getClass tile) ++ "\">&nbsp</td>"
+        mktable table = "<table>" ++ table ++ "</table>"
+        mktr row = "<tr>" ++ row ++ "</tr>"
+        mktd tile = "<td class=\"" ++ (getClass tile) ++ "\">&nbsp</td>"
+        --mktd tile = "<td style=\"background-color: " ++ (getClass tile) ++ "\">&nbsp</td>"
 
-		getClass :: Color -> String
-		getClass tile = show tile
+        getClass :: Color -> String
+        getClass tile = show tile
 
 add :: Shape -> Int -> Int -> Int -> Color -> Wall -> Wall
 add shape x y r c wall = wall'
-	where
-		shape' = transform x y r shape
-		wall' = foldl setTile wall shape'
-		setTile w (sx, sy) = setColor sx sy c w
+    where
+        shape' = transform x y r shape
+        wall' = foldl setTile wall shape'
+        setTile w (sx, sy) = setColor sx sy c w
 
 addSafe :: Shape -> Int -> Int -> Int -> Color -> Wall -> Wall
 addSafe shape x y r c wall = case addMaybe shape x y r c (Just wall) of
-								Just wall' -> wall'
-								Nothing    -> wall
+                                Just wall' -> wall'
+                                Nothing    -> wall
+
+isEmptyForShape :: Shape -> Int -> Int -> Int -> Wall -> Bool
+isEmptyForShape shape x y r wall = (filter (hasTileAlready wall) shape') == []
+    where
+        shape' = transform x y r shape
+        hasTileAlready wall coord = not $ isEmptyTile wall coord
 
 addMaybe :: Shape -> Int -> Int -> Int -> Color -> Maybe Wall -> Maybe Wall
 addMaybe shape x y r c (Just wall) = case isClear of
-								True  -> Just (add shape x y r c wall)
-								False -> Nothing
-	where
-		shape' = transform x y r shape
-		isClear = (filter (hasTitleAlready wall) shape') == []
-		hasTitleAlready wall coord = not $ isEmptyTile wall coord
+                                True  -> Just (add shape x y r c wall)
+                                False -> Nothing
+    where
+        shape' = transform x y r shape
+        isClear = (filter (hasTitleAlready wall) shape') == []
+        hasTitleAlready wall coord = not $ isEmptyTile wall coord
 
 
 ---------
@@ -98,20 +104,20 @@ addMaybe shape x y r c (Just wall) = case isClear of
 
 rotate :: Int -> Shape -> Shape
 rotate r shape = map rotateCoord shape
-	where 
-		norm :: Int -> Int
-		norm r | r > 3 = r `mod` 4
-		norm r | r < 0 = 4 + (r `mod` 4)
-		norm r = r
+    where 
+        norm :: Int -> Int
+        norm r | r > 3 = r `mod` 4
+        norm r | r < 0 = 4 + (r `mod` 4)
+        norm r = r
 
-		nr = norm r
-		rotateCoord coord = foldl rotateOnce coord [1..nr]
-		rotateOnce (sx, sy) _ = (-sy, sx)
+        nr = norm r
+        rotateCoord coord = foldl rotateOnce coord [1..nr]
+        rotateOnce (sx, sy) _ = (-sy, sx)
 
 translate :: Int -> Int -> Shape -> Shape
 translate x y shape = map translateCoord shape
-	where
-		translateCoord (sx, sy) = (x + sx, y + sy)
+    where
+        translateCoord (sx, sy) = (x + sx, y + sy)
 
 transform :: Int -> Int -> Int -> (Shape -> Shape)
 transform x y r = (translate x y) . (rotate r)
@@ -143,12 +149,12 @@ sT = [(0, 0), (1, 0), (2, 0), (1, 1)]
 -----------
 byIndex :: Int -> [a] -> a
 byIndex index items = items !! nindex
-	where
-		nindex = index `mod` (length items)
+    where
+        nindex = index `mod` (length items)
 
 
 shapeByIndex :: Int -> Shape
-shapeByIndex index = byIndex index [sL, sJ, sI, sS, sZ, sO, sT]
+shapeByIndex index = byIndex index [sS, sJ, sT, sO, sL, sZ, sI]
 
 colorByIndex :: Int -> Color
 colorByIndex index = byIndex index [White, Yellow, Red]
@@ -160,77 +166,154 @@ colorByIndex index = byIndex index [White, Yellow, Red]
 
 decorateWall :: Wall -> Wall
 decorateWall wall = addSafe sJ  8 3 3 Red $ 
-					addSafe sI  6 4 0 Yellow $ 
-					addSafe sZ  6 1 1 Red $
-					addSafe sS  6 3 0 White $ 
-					addSafe sJ  7 1 3 Yellow $
-					addSafe sL  4 2 0 White $
-					addSafe sO 10 1 0 White $
-					addSafe sT 11 5 3 Yellow $ 
-					addSafe sS 13 4 3 Red $
-			 		wall
-			
+                    addSafe sI  6 4 0 Yellow $ 
+                    addSafe sZ  6 1 1 Red $
+                    addSafe sS  6 3 0 White $ 
+                    addSafe sJ  7 1 3 Yellow $
+                    addSafe sL  4 2 0 White $
+                    addSafe sO 10 1 0 White $
+                    addSafe sT 11 5 3 Yellow $ 
+                    addSafe sS 13 4 3 Red $
+                    wall
+            
 
 deserializeWall :: [(Int, Int, Int, Int, Int)] -> Wall -> Wall
 deserializeWall shapeData wall = generate shapeData wall
-	where
-		generate [] wall = wall
-		generate ((s,x,y,r,c):sx) wall = generate sx $ addSafe (shapeByIndex s) x y r (colorByIndex c) wall
+    where
+        generate [] wall = wall
+        generate ((s,x,y,r,c):sx) wall = generate sx $ addSafe (shapeByIndex s) x y r (colorByIndex c) wall
+
+fillupWall' :: Int -> Wall -> Maybe Wall
+fillupWall' cnt wall = fillFrom (0, 0) cnt wall
+    where
+        fillFrom :: (Int, Int) -> Int -> Wall -> Maybe Wall
+        fillFrom coord 0   wall = Just wall
+        fillFrom (x,y) cnt wall = tryToFill 0
+            where
+                tryToFill :: Int -> Maybe Wall
+                tryToFill state | state == (3*4*(height wall)) = Nothing
+                tryToFill state = case fillWithState state of
+                                        Just w -> Just w
+                                        Nothing -> tryToFill (state + 1)
+
+                fillWithState :: Int -> Maybe Wall
+                fillWithState state = do
+                    (gShape, gR, gColor) <- genShape state
+                    wall'  <- tryToAdd gShape gR gColor wall
+                    wall'' <- fillFrom (nextOn wall') (cnt - 1) wall'
+                    return wall''
+
+                nextOn :: Wall -> (Int, Int)
+                nextOn wall = next' (x,y)
+                    where
+                        next' c = case getColor c' wall of
+                                        Just Empty -> c'
+                                        Nothing -> (0,0)
+                                        otherwise -> next' c'
+                            where
+                                c' = cnext c
+                                cnext (x,y) = if y < (height wall) - 1 then (x, y+1) else (x+1, 0)
+
+                tryToAdd :: Shape -> Int -> Color -> Wall -> Maybe Wall
+                tryToAdd shape rot color wall = if coordOK && colorOK 
+                                                then Just $ addSafe shape x y rot color wall
+                                                else Nothing
+                    where
+                        coordOK = isEmptyForShape shape x y rot wall
+                        colorOK = noSameColorAround shape rot color wall
+
+                genShape :: Int -> Maybe (Shape, Int, Color)
+                genShape state | state == (3*4*(height wall)) = Nothing
+                genShape state   = Just (shapeByIndex $ state `div` 3 `div` 4 `mod` 7, 
+                                         state `div` 3 `mod` 4, 
+                                         colorByIndex $ state `mod` 3)
+
+                noSameColorAround :: Shape -> Int -> Color -> Wall -> Bool
+                noSameColorAround shape rot color wall = and $ map checkColorAround shape'
+                    where
+                        shape' = transform x y rot shape
+                        checkColorAround coord = and $ map checkColorAt (coordsAround coord)
+                        checkColorAt coord = case getColor coord wall of
+                                                    Just c -> c /= color
+                                                    Nothing -> True
+                        coordsAround (sx, sy) = [(sx+1, sy), (sx-1, sy), (sx, sy+1), (sx, sy-1)]
+
+
+next' c wall = case getColor c' wall of
+                Just Empty -> c'
+                Nothing -> (0,0)
+                otherwise -> next' c' wall
+    where
+        c' = cnext c
+        cnext (x,y) = if y < (height wall) then (x, y+1) else (x+1, 0)
+
 
 fillupWall :: Wall -> Wall
-fillupWall wall = fillup (0, 0) 0 0 20 wall
-	where
-		fillup (x, y) _ _        _   wall | x == maxx = wall
-		fillup _      _ _        0   wall = wall
-		fillup coord  c genstate cnt wall | genstate == maxGenState = fillup (next coord) (c + 1) 0 cnt wall
-		fillup (x, y) c genstate cnt wall = case tryToAdd gShape x y gR (colorByIndex c) (Just wall) of
-											Just wall' -> fillup (next (x, y)) (c + 1) 0              (cnt-1) wall'
-											Nothing    -> fillup (x, y)        (c + 1) (genstate + 1)  cnt    wall
-							where
-								(gShape, gR) = genShape genstate
+fillupWall wall = fillup (0, 0) 0 0 200 wall
+    where
+        fillup (x, y) _ _        _   wall | x == maxx = wall
+        fillup _      _ _        0   wall = wall
+        fillup coord  c genstate cnt wall | genstate == maxGenState = fillup (next coord) (c + 1) 0 cnt wall
+        fillup (x, y) c genstate cnt wall = case tryToAdd gShape x y gR (colorByIndex c) (Just wall) of
+                                            Just wall' -> fillup (next (x, y)) (c + 1) 0              (cnt-1) wall'
+                                            Nothing    -> fillup (x, y)        (c + 1) (genstate + 1)  cnt    wall
+                            where
+                                (gShape, gR) = genShape genstate
 
-		next :: (Int, Int) -> (Int, Int)
-		next (x, y) | y == maxy = (x+1, 0)
-		next (x, y) = (x, y+1)
+        next :: (Int, Int) -> (Int, Int)
+        next (x, y) | y == maxy = (x+1, 0)
+        next (x, y) = (x, y+1)
 
-		maxx = (width wall) -  1
-		maxy = (height wall) -  1
+        maxx = (width wall) -  1
+        maxy = (height wall) -  1
 
-		tryToAdd :: Shape -> Int -> Int -> Int -> Color -> Maybe Wall -> Maybe Wall
-		tryToAdd shape x y r c (Just wall) = case checkColors of 
-												True -> addMaybe shape x y r c (Just wall)
-												False -> Nothing
-			where
-				shape' = transform x y r shape
-				checkColors = and $ map checkColorFor shape'
-				checkColorAround coord = and $ map checkColorFor (coordsAround coord)
-				checkColorFor coord = case getColor coord wall of
-												Just c' -> c' /= c
-												Nothing -> True
-				coordsAround (sx, sy) = [(sx+1, sy), (sx-1, sy), (sx, sy+1), (sx, sy-1)]
+        tryToAdd :: Shape -> Int -> Int -> Int -> Color -> Maybe Wall -> Maybe Wall
+        tryToAdd shape x y r c (Just wall) = case checkColors of 
+                                                True -> addMaybe shape x y r c (Just wall)
+                                                False -> Nothing
+            where
+                shape' = transform x y r shape
+                checkColors = and $ map checkColorAround shape'
+                checkColorAround coord = and $ map checkColorFor (coordsAround coord)
+                checkColorFor coord = case getColor coord wall of
+                                                Just c' -> c' /= c
+                                                Nothing -> True
+                coordsAround (sx, sy) = [(sx+1, sy), (sx-1, sy), (sx, sy+1), (sx, sy-1)]
 
-type Gen = Int -> (Shape, Int)
-genShape :: Gen
-genShape state = (shapeByIndex $ state `div` 4, state `mod` 4)
-maxGenState :: Int
-maxGenState = 7 * 4
+        --type Gen = Int -> (Shape, Int)
+        genShape :: Int -> (Shape, Int)
+        genShape state = (shapeByIndex $ state `div` 4, state `mod` 4)
+        maxGenState :: Int
+        maxGenState = 7 * 4
 
 main :: IO ()
 main = do
-	let wall = 
-			   --deserializeWall randomShapes $ 
-			   decorateWall $
-			   addSafe sL 15 3 0 Yellow $
-			   setColor 0 0 Yellow $ 
-			   setColor 1 1 Red $ 
-			   setColor 0 2 White $ 
-			   createWall 30 7 Empty
-	let wall' = fillupWall $ 
-			   createWall 30 7 Empty
+    let wall = 
+               --deserializeWall randomShapes $ 
+               decorateWall $
+               addSafe sL 15 3 0 Yellow $
+               setColor 0 0 Yellow $ 
+               setColor 1 1 Red $ 
+               setColor 0 2 White $ 
+               createWall 30 7 Empty
 
-	writeFile "/tmp/tiles.html" $ wall2html wall'
-	--print $ wall
-	--print $ wall2html wall
+    let wall' = Just $ 
+                fillupWall $ 
+                createWall 30 7 Empty
+
+    let longer_side = fillupWall' 53 $ 
+                       addSafe sT 13 4 3 White $
+                       addSafe sO 20 4 0 Yellow $
+                       addSafe sZ 19 1 1 Yellow $
+                       createWall 32 7 Empty
+
+    let shorter_side = fillupWall' 20 $
+                       addSafe sT 0 2 0 White $
+                       createWall 12 7 Empty
+
+    case shorter_side of 
+        Just w -> writeFile "/tmp/tiles.html" $ wall2html w
+        Nothing -> print "ooo..."
 
 
 
