@@ -303,18 +303,24 @@ main = do
                          $ deserializeWall randomShapes
                          $ createWall 30 7 Empty
 
-    let longer_side = fillupWall 53
+    let longer_side = fillupWall 39
                     $ addSafe sT 13 4 3 White
                     $ addSafe sO 20 4 0 Yellow
-                    $ addSafe sZ 19 1 1 Yellow
-                    $ createWall 32 7 Empty
+--                    $ addSafe sZ 20 2 1 Yellow
+                    $ createWall 32 5 Empty
 
-    let shorter_side = fillupWall 20
-                     $ addSafe sT 0 2 0 White
-                     $ createWall 12 7 Empty
+    let shorter_side = fillupWall 18
+                     $ addSafe sJ 2 0 0 Red
+                     $ addSafe sI 10 2 0 White
+--                     $ addSafe sT 0 2 0 White
+                     $ createWall 16 5 Empty
 
     case longer_side of 
-        Just w -> writeFile "/tmp/tiles.html" $ wall2html w
+        Just w -> writeFile "/tmp/tiles-longer.html" $ wall2html w
+        Nothing -> print "ooo..."
+
+    case shorter_side of 
+        Just w -> writeFile "/tmp/tiles-shorter.html" $ wall2html w
         Nothing -> print "ooo..."
 
 
